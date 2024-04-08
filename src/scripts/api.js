@@ -1,3 +1,114 @@
+const routes = {
+  champions: "http://localhost:8080/champions",
+  ask: "http://localhost:8080/champions/{id}/ask",
+}
+
+const apiService ={
+  async getChampions(){
+    const route = routes.champions;
+    const response = await fetch(route);
+    console.log(response);
+    return await response.json();
+  },
+
+  async postAskChampion(id,  question){
+    const route = routes.ask.replace("{id}", id);
+    const options = {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: question}),
+    };
+
+    const response = await fetch(route, options);
+    return await response.json();
+  },
+}
+
+const state = {
+  values: {
+    champions: [],
+  },
+  views: {
+    response: document.querySelector( ".text-response" ),
+    question: document.getElementById("text-request"),
+    avatar: document.getElementById("avatar"),
+    carousel: document.getElementById("carousel-cards-content"),
+  },
+};
+
+async function main(){
+  await loadChampion();
+  await renderChampions();
+  await loadCarrousel();
+}
+
+async function loadChampion(){
+  const data = await apiService.getChampions();
+  state.values.champions = data;  
+}
+
+async function renderChampions(){
+  const championsData = state.values.champions;
+  const elements = championsData.map((character) => 
+    `<div class="timeline-carousel__item"
+    onclick="onChangeChampionSelected(${character.id}, '${character.imageUrl}')" >
+    <div class="timeline-carousel__image">
+      <div class="media-wrapper media-wrapper--overlay"
+        style="background: url('${character.imageUrl}') center center; background-size:cover;">
+      </div>
+    </div>
+    <div class="timeline-carousel__item-inner">
+      <span class="name">${character.name}</span>
+      <span class="role">${character.role}</span>
+      <p>${character.lore}/p>
+    </div>
+  </div>`
+  );
+
+  state.views.carousel.innerHTML = elements.join(" ");
+}
+
+async function onChangeChampionSelected(id, imageUrl){
+  state.views.avatar.style.backgroundImage = `url('${imageUrl}')`;
+  state.views.avatar.dataset.id = id;
+  await resetForm();
+}
+
+async function resetForm(){
+  // Verifique se state.views.response não é null antes de tentar acessar o textContent
+  if(state.views.response){
+    state.views.question.value = "";
+    
+    const randomQuote = getRandomQuote(); // Obtenha uma citação aleatória
+    if(randomQuote){
+      state.views.response.textContent = randomQuote; // Defina o textContent com a citação aleatória
+    } else {
+      console.error("Citação aleatória não encontrada.");
+    }
+  } else {
+    console.error("Elemento response não encontrado.");
+  }
+}
+
+ function getRandomQuote(){
+  const quotes = [
+     "O que vc quer saber?",
+     "Que missao para conquistar, precisa de ajuda?",
+     "Vai pergunta, sem enrolação!",
+  ];
+  const randomIndex = Math.floor(Math.random() * quotes.length);
+  return quotes[randomIndex];
+}
+
+async function fetchAskChampion(){
+  document.body.style.cursor = 'wait'; // Mude o cursor do mouse para aguardando enquanto a solicitação for feita
+  const id = state.views.avatar.dataset.id
+  const message = state.views.question.value
+  const response = await apiService.postAskChampion(id, message);
+  state.views.response.textContent = response.answer;
+  document.body.style.cursor = 'default';
+}
+
 async function loadCarrousel() {
   const caroujs = (el) => {
     return $("[data-js=" + el + "]");
@@ -28,4 +139,4 @@ async function loadCarrousel() {
   });
 }
 
-loadCarrousel();
+main();
